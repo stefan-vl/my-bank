@@ -60,7 +60,7 @@ func TestDeleteAccount(t *testing.T) {
 	require.NoError(t, err, "", nil)
 
 	entry, err := testQueries.GetEntry(context.Background(), account.ID)
-	require.NoErrorf(t, err, "", nil)
+	require.Error(t, err, "", nil)
 	require.NotEmptyf(t, entry, "", nil)
 }
 
