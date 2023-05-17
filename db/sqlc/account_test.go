@@ -9,7 +9,8 @@ import (
 )
 
 func createRandomAccount(t *testing.T) Account {
-	arg := CreateAccountParams{Owner: util.RandomOwner(), Balance: util.RandomMoney(), Currency: util.RandomCurrency()}
+	user := createRandomUser(t)
+	arg := CreateAccountParams{Owner: user.Username, Balance: util.RandomMoney(), Currency: util.RandomCurrency()}
 
 	account, err := testQueries.CreateAccount(context.Background(), arg)
 	require.NoErrorf(t, err, "", nil)
