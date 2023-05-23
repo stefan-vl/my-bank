@@ -22,7 +22,7 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create token maker %w", err)
 	}
-	server := &Server{store: store, tokenMaker: tokenMaker}
+	server := &Server{store: store, config: config, tokenMaker: tokenMaker}
 	router := gin.Default()
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
@@ -30,18 +30,21 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 	}
 
 	setupRouter(router, server)
-	router.POST("/users/login", server.loginUser)
 
 	server.router = router
 	return server, nil
 }
 
 func setupRouter(router *gin.Engine, server *Server) {
-	router.POST("/accounts", server.createAccount)
-	router.GET("/accounts/:id", server.getAccount)
-	router.GET("/accounts", server.listAccount)
-	router.POST("/transfers", server.createTransfer)
 	router.POST("/users", server.createUser)
+	router.POST("/users/login", server.loginUser)
+
+	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
+	authRoutes.POST("/accounts", server.createAccount)
+	authRoutes.GET("/accounts/:id", server.getAccount)
+	authRoutes.GET("/accounts", server.listAccount)
+	authRoutes.POST("/transfers", server.createTransfer)
+
 }
 
 func errorResponse(err error) gin.H {
