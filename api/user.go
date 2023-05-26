@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 	db "github.com/stefan-vl/my-bank/db/sqlc"
 	"github.com/stefan-vl/my-bank/util"
@@ -31,8 +32,12 @@ type loginUserRequest struct {
 }
 
 type loginUserResponse struct {
-	AccessToken string       `json:"access_token"`
-	User        userResponse `json:"user"`
+	SessionID             uuid.UUID    `json:"session_id"`
+	AccessToken           string       `json:"access_token"`
+	AccessTokenExpiresAt  time.Time    `json:"access_token_expires_at"`
+	RefreshToken          string       `json:"refresh_token"`
+	RefreshTokenExpiresAt time.Time    `json:"refresh_token_expires_at"`
+	User                  userResponse `json:"user"`
 }
 
 func newUserResoponse(user db.User) userResponse {
@@ -61,12 +66,33 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		return
 	}
 
-	token, err := server.tokenMaker.CreateToken(user.Username, server.config.AccessTokenDuration)
+	token, accessPayload, err := server.tokenMaker.CreateToken(user.Username, server.config.AccessTokenDuration)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
-	response := loginUserResponse{AccessToken: token, User: newUserResoponse(user)}
+
+	refreshToken, refreshPayload, err := server.tokenMaker.CreateToken(user.Username, server.config.RefreshTokenDuration)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	session, err := server.store.CreateSession(ctx, db.CreateSessionParams{
+		ID:           refreshPayload.ID,
+		Username:     user.Username,
+		RefreshToken: refreshToken,
+		UserAgent:    ctx.Request.UserAgent(),
+		ClientIp:     ctx.ClientIP(),
+		IsBlocked:    false,
+		ExpiredAt:    refreshPayload.ExpiredAt,
+	})
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	response := loginUserResponse{SessionID: session.ID, AccessToken: token, AccessTokenExpiresAt: accessPayload.ExpiredAt, RefreshToken: refreshToken, RefreshTokenExpiresAt: refreshPayload.ExpiredAt, User: newUserResoponse(user)}
 
 	ctx.JSON(http.StatusOK, response)
 
