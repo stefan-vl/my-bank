@@ -2,7 +2,6 @@ package gapi
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	db "github.com/stefan-vl/my-bank/db/sqlc"
 	"github.com/stefan-vl/my-bank/pb"
 	"github.com/stefan-vl/my-bank/token"
@@ -24,8 +23,4 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 	server := &Server{store: store, config: config, tokenMaker: tokenMaker}
 
 	return server, nil
-}
-
-func errorResponse(err error) gin.H {
-	return gin.H{"error": err.Error()}
 }
